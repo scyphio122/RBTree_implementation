@@ -16,20 +16,20 @@ typedef enum
 /**
   \brief This structure describes the single map node
   **/
-typedef struct node
+typedef struct map_node_t
 {
     void*           object_address; /// Pointer to the embedded in the node object
     uint32_t        object_size;    /// Object size
     uint32_t        object_flags;   /// Flags describing the object, (READ_ONLY, etc.)
     e_node_color    node_color;
-    struct node*     left_child;     /// Pointer to the left child
-    struct node*     right_child;    /// Pointer to the right child
-    struct node*     parent;         /// Pointer to the parent
+    struct map_node_t*     left_child;     /// Pointer to the left child
+    struct map_node_t*     right_child;    /// Pointer to the right child
+    struct map_node_t*     parent;         /// Pointer to the parent
 }map_node_t;
 
 typedef struct
 {
-    struct node* root;
+    struct map_node_t* root;
 }map_t;
 
 /**
@@ -47,7 +47,9 @@ typedef struct
 
 
 
+void* map_find_lowest_available_space(map_t* map, void* start_address, uint64_t size_requested);
 
+void* mymap_mmap(map_t* map, void* vaddr, unsigned int size, unsigned int flags, void* o);
 
 
 

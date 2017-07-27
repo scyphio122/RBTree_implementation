@@ -33,7 +33,7 @@ static bool _is_strictly_higher_address(map_node_t* new_node, map_node_t* cur_no
     return false;
 }
 
-static void _rotate_left(map_node_t* map_root, map_node_t* right_child)
+static void _rotate_left(map_node_t** map_root, map_node_t* right_child)
 {
     map_node_t* parent = right_child->parent;
     map_node_t* tmp = right_child->left_child;
@@ -85,7 +85,140 @@ static void _rotate_right(map_node_t** map_root, map_node_t* left_child)
     parent->left_child = tmp;
 }
 
-void* map_find_lowest_available_space(map_t* map, void* start_address, uint32_t size_requested)
+static bool _check_case_3(map_t* map, map_node_t* node_to_check)
+{
+    map_node_t* root = map->root;
+    map_node_t* parent = node_to_check->parent;
+    //  If is root
+    if (parent == NULL)
+        return false;
+
+    map_node_t* grandparent = parent->parent;
+    if (grandparent == NULL)
+        return false;
+
+    if (parent == grandparent->left_child)
+    {
+        if (node_to_check == parent->left_child && grandparent->right_child->node_color == E_BLACK)
+        {
+            _rotate_right(&root, parent);
+        }
+        else
+        {
+            return false;
+        }
+    }
+    else
+    {
+        if (node_to_check == parent->right_child && grandparent->left_child->node_color == E_BLACK)
+        {
+            _rotate_left(&root, parent);
+        }
+        else
+        {
+            return false;
+        }
+    }
+
+    if(parent->node_color == E_BLACK)
+        parent->node_color = E_RED;
+    else
+        parent->node_color = E_BLACK;
+
+    if(grandparent->node_color == E_BLACK)
+        grandparent->node_color = E_RED;
+    else
+        grandparent->node_color = E_BLACK;
+
+    return true;
+}
+
+static bool _check_case_2(map_t* map, map_node_t* node_to_check)
+{
+    map_node_t* root = map->root;
+    map_node_t* parent = node_to_check->parent;
+    //  If is root
+    if (parent == NULL)
+        return false;
+
+    map_node_t* grandparent = parent->parent;
+    if (grandparent == NULL)
+        return false;
+
+    if (parent == grandparent->left_child)
+    {
+        if (parent->node_color == E_RED && grandparent->right_child->node_color == E_BLACK)
+        {
+            _rotate_left(&root, node_to_check);
+            /// After rotation, parent became left child of node_to_check
+            _check_case_3(map, parent);
+
+            return true;
+        }
+    }
+    else
+    {
+        if (parent->node_color == E_RED && grandparent->left_child->node_color == E_BLACK)
+        {
+            _rotate_right(&root, node_to_check);
+            /// After rotation, parent became left child of node_to_check
+            _check_case_3(map, parent);
+
+            return true;
+        }
+    }
+    return false;
+}
+
+static bool _check_case_1(map_t* map, map_node_t* node_to_check)
+{
+    map_node_t* root = map->root;
+
+    do
+    {
+        map_node_t* parent = node_to_check->parent;
+        //  If is root
+        if (parent == NULL)
+            return false;
+
+        map_node_t* grandparent = parent->parent;
+        if (grandparent == NULL)
+            return false;
+
+        if (parent == grandparent->left_child)
+        {
+            if (parent->node_color == E_RED && grandparent->right_child->node_color == E_RED)
+            {
+                parent->node_color = E_BLACK;
+                grandparent->right_child->node_color = E_BLACK;
+            }
+        }
+        else
+        {
+            if (parent->node_color == E_RED && grandparent->left_child->node_color == E_RED)
+            {
+                parent->node_color = E_BLACK;
+                grandparent->left_child->node_color = E_BLACK;
+            }
+        }
+
+        if (grandparent != root)
+        {
+            grandparent->node_color = E_RED;
+            return true;
+        }
+        else
+        {
+            node_to_check = grandparent;
+            continue;
+        }
+
+    }while(node_to_check->parent != NULL);
+
+    return false;
+}
+
+void* map_find_lowest_available_space(map_t* map, void* start_address, uint64_t size_requested)
 {
     map_node_t* tmp = map->root;
 
@@ -96,14 +229,14 @@ void* map_find_lowest_available_space(map_t* map, void* start_address, uint32_t 
             if (start_address < tmp->right_child->object_address)
             {
                 /// If there is enough space
-                if (((uint32_t)tmp->right_child->object_address - start_address) >= size_requested)
+                if (((uint64_t)tmp->right_child->object_address - (uint64_t)start_address) >= size_requested)
                 {
                     return start_address;
                 }
                 else /// If there is too little space, set the searched address to the next node
                 {
                     /// Set the new searched address just behind the neares object
-                    start_address = (void*)((uint32_t)tmp->right_child->object_address + tmp->right_child->object_size);
+                    start_address = (void*)((uint64_t)tmp->right_child->object_address + tmp->right_child->object_size);
                     tmp = map->root;
                     continue;
                 }
@@ -118,14 +251,14 @@ void* map_find_lowest_available_space(map_t* map, void* start_address, uint32_t 
         if (start_address < tmp->object_address)
         {
             /// If there is enough space
-            if ((void*)((uint32_t)start_address + size_requested) < tmp->object_address)
+            if ((void*)((uint64_t)start_address + size_requested) < tmp->object_address)
             {
                 return start_address;
             }
             else
             {
                 /// Start over
-                start_address = (void*)((uint32_t)tmp->object_address + tmp->object_size);
+                start_address = (void*)((uint64_t)tmp->object_address + tmp->object_size);
                 tmp = map->root;
                 continue;
             }
@@ -138,7 +271,6 @@ void* map_find_lowest_available_space(map_t* map, void* start_address, uint32_t 
 
 void* mymap_mmap(map_t* map, void* vaddr, unsigned int size, unsigned int flags, void* o)
 {
-    bool needs_rotation = false;
     bool forced_right_subtree_embedding = false;
     map_node_t* new_node = _createNode();
     ASSERT(new_node);
@@ -166,63 +298,81 @@ void* mymap_mmap(map_t* map, void* vaddr, unsigned int size, unsigned int flags,
     {
         if (!forced_right_subtree_embedding)
         {
-            /// If the object address is lesser than the current object address
-            if (_is_strictly_lower_address(new_node, node_ptr))
+            if (new_node->object_address < node_ptr->object_address)
             {
-                /// If there is no children
-                if (node_ptr->left_child == NULL)
+                /// If the object address is lesser than the current object address
+                if  (_is_strictly_lower_address(new_node, node_ptr))
                 {
-                    node_ptr->left_child = new_node;
-                    new_node->parent = node_ptr;
-                    memcpy(vaddr, o, size);
-                    if (node_ptr->parent->node_color == E_RED)
+                    /// If there is no children
+                    if (node_ptr->left_child == NULL)
                     {
-                        new_node->node_color = E_BLACK;
-                        needs_rotation = true;
-                    }
+                        node_ptr->left_child = new_node;
+                        new_node->parent = node_ptr;
+                        memcpy(vaddr, o, size);
+                        if (new_node->parent->node_color == E_RED)
+                        {
+                            if (_check_case_1(map, new_node))
+                            {
+                                return vaddr;
+                            }
+                            else
+                            if (_check_case_2(map, new_node))
+                            {
+                                return vaddr;
+                            }
+                            else
+                            if (_check_case_3(map, new_node))
+                            {
+                                return vaddr;
+                            }
+                            return vaddr;
+                        }
 
-                    return vaddr;
+                        return vaddr;
+                    }
+                    else
+                    {
+                        node_ptr = node_ptr->left_child;
+                        continue;
+                    }
                 }
                 else
                 {
-                    node_ptr = node_ptr->left_child;
+                    forced_right_subtree_embedding = true;
+                    node_ptr = map->root->right_child;
                     continue;
                 }
             }
-            else
-            {
-                forced_right_subtree_embedding = true;
-                node_ptr = map->root->right_child;
-                continue;
-            }
 
-            /// Check if object should be placed to the right from the current node
-            if (_is_strictly_higher_address(new_node, node_ptr))
+            if (new_node->object_address > node_ptr->object_address)
             {
-                /// If there is no childs
-                if (node_ptr->right_child == NULL)
+                /// Check if object should be placed to the right from the current node
+                if (_is_strictly_higher_address(new_node, node_ptr))
                 {
-                    node_ptr->right_child = new_node;
-                    new_node->parent = node_ptr;
-                    memcpy(vaddr, o, size);
-                    if (node_ptr->node_color == E_RED)
+                    /// If there is no childs
+                    if (node_ptr->right_child == NULL)
                     {
-                        new_node->node_color = E_BLACK;
-                        needs_rotation = true;
-                    }
+                        node_ptr->right_child = new_node;
+                        new_node->parent = node_ptr;
+                        memcpy(vaddr, o, size);
+                        if (node_ptr->node_color == E_RED)
+                        {
+                            new_node->node_color = E_BLACK;
+                        }
 
-                    return vaddr;
+                        return vaddr;
+                    }
+                    else
+                    {
+                        node_ptr = node_ptr->right_child;
+                        continue;
+                    }
                 }
                 else
                 {
                     node_ptr = node_ptr->right_child;
                     continue;
                 }
-            }
-            else
-            {
-                node_ptr = node_ptr->right_child;
-                continue;
             }
         }
         else
