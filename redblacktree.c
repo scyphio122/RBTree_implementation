@@ -4,6 +4,10 @@
 #include <stdlib.h>
 #include <string.h>
 
+#define SCREEN_BUFFER_WIDTH     256
+#define SCREEN_BUFFER_HEIGHT    60
+#define NODE_SIZE               15
+
 static map_node_t map_guardian = {    .object_address = NULL,
                                       .object_size = 0,
                                       .object_flags = 0,
@@ -12,6 +16,8 @@ static map_node_t map_guardian = {    .object_address = NULL,
                                       .right_child = NULL,
                                       .parent = NULL
                                  };
+
+static char screen_buffer[SCREEN_BUFFER_HEIGHT][SCREEN_BUFFER_WIDTH];
 
 static map_node_t* _createNode()
 {
@@ -499,4 +505,106 @@ void print_t(map_node_t *tree)
 
     for (int i = 0; i < 20; i++)
         printf("%s\n", s[i]);
+}
+
+static int dump_node(map_node_t* node, int current_depth, int current_x, int width, int height)
+{
+    static const int BUF_SIZE = 15;
+    char pointer_buffer[BUF_SIZE];
+    char size_buffer[BUF_SIZE];
+    char flags_buffer[BUF_SIZE];
+    char node_color[BUF_SIZE];
+
+    memset(pointer_buffer, '\0', sizeof(pointer_buffer));
+    memset(size_buffer, '\0', sizeof(size_buffer));
+    memset(flags_buffer, '\0', sizeof(flags_buffer));
+    memset(node_color, '\0', sizeof(node_color));
+
+    uint8_t line_max_width = 20;
+
+    if (node == &map_guardian)
+        return current_depth;
+
+    int left_depth = current_depth;
+    int right_depth = current_depth;
+
+    left_depth = dump_node(node->left_child, current_depth + 5, current_x - NODE_SIZE, width, height);
+    right_depth = dump_node(node->right_child, current_depth + 5, current_x + NODE_SIZE, width, height);
+
+    int chars_written = sprintf(pointer_buffer, "P:%p", node->object_address);
+    memset(pointer_buffer+chars_written, ' ', sizeof(pointer_buffer) - chars_written);
+
+    chars_written = sprintf(size_buffer, "S:%u", node->object_size);
+    memset(size_buffer+chars_written, ' ', sizeof(size_buffer) - chars_written);
+
+    chars_written = sprintf(flags_buffer, "F:%u", node->object_flags);
+    memset(flags_buffer+chars_written, ' ', sizeof(flags_buffer) - chars_written);
+
+    chars_written = sprintf(node_color, "Node color: %c", node->node_color? 'R' : 'B');
+    memset(node_color+chars_written, ' ', sizeof(node_color) - chars_written);
+
+    screen_buffer[current_depth][current_x] = '+';
+    strncpy(&(screen_buffer[current_depth+1][current_x]), pointer_buffer, BUF_SIZE);
+    strncpy(&(screen_buffer[current_depth+2][current_x]), size_buffer, BUF_SIZE);
+    strncpy(&(screen_buffer[current_depth+3][current_x]), flags_buffer, BUF_SIZE);
+    strncpy(&(screen_buffer[current_depth+4][current_x]), node_color, BUF_SIZE);
+    screen_buffer[current_depth + 5][current_x] = '/';
+    screen_buffer[current_depth + 5][current_x + BUF_SIZE-1] = '\';
+
+    screen_buffer[current_depth][SCREEN_BUFFER_WIDTH - 1] = '\0';
+    screen_buffer[current_depth + 1][SCREEN_BUFFER_WIDTH - 1] = '\0';
+    screen_buffer[current_depth + 2][SCREEN_BUFFER_WIDTH - 1] = '\0';
+    screen_buffer[current_depth + 3][SCREEN_BUFFER_WIDTH - 1] = '\0';
+    screen_buffer[current_depth + 4][SCREEN_BUFFER_WIDTH - 1] = '\0';
+
+    if (right_depth > current_depth || left_depth > current_depth)
+    {
+        if(right_depth > left_depth)
+            return right_depth;
+
+        return left_depth;
+    }
+
+    return current_depth;
+}
+
+void dump_tree(map_t* map)
+{
+    memset(screen_buffer, ' ', sizeof(screen_buffer));
+
+    int depth = dump_node(map->root, 0, 15, SCREEN_BUFFER_WIDTH, SCREEN_BUFFER_HEIGHT);
+
+    for(int i=5; i<depth; i += 5)
+    {
+        int start_node_index = -1;
+        int end_node_index = -1;
+        for(int j=0; j<SCREEN_BUFFER_WIDTH; ++j)
+        {
+            if (start_node_index == -1 && screen_buffer[i][j] == '+')
+            {
+                start_node_index = j;
+            }
+            if (screen_buffer[i][j] == '+')
+            {
+                end_node_index = j;
+            }
+        }
+        if (start_node_index != -1 && end_node_index != -1)
+        {
+            for(int k = start_node_index + 1; k<end_node_index; ++k)
+            {
+                if (screen_buffer[i][k] == '|')
+                    continue;
+                else
+                    screen_buffer[i][k] = '-';
+            }
+        }
+    }
+
+    for(int i=0; i< depth; ++i)
+    {
+        printf("%s\n", screen_buffer[i]);
+    }
+
+    printf("\n\n");
 }
