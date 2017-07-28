@@ -6,7 +6,7 @@
 
 #define SCREEN_BUFFER_WIDTH     256
 #define SCREEN_BUFFER_HEIGHT    60
-#define NODE_SIZE               15
+#define NODE_SIZE               20
 
 static map_node_t map_guardian = {    .object_address = NULL,
                                       .object_size = 0,
@@ -438,75 +438,6 @@ void* mymap_mmap(map_t* map, void* vaddr, unsigned int size, unsigned int flags,
     return NULL;
 }
 
-static int _print_t(map_node_t *tree, int is_left, int offset, int depth, char s[20][255])
-{
-    char b[20];
-    int width = 15;
-
-    if (tree == &map_guardian
-            ) return 0;
-
-    sprintf(b, "(%p,%c)",(void*)((int64_t)(tree->object_address) % 0x1000), tree->node_color? 'R' : 'B');
-
-    int left  = _print_t(tree->left_child,  1, offset,                depth + 1, s);
-    int right = _print_t(tree->right_child, 0, offset + left + width, depth + 1, s);
-
-#ifdef COMPACT
-    for (int i = 0; i < width; i++)
-        s[depth][offset + left + i] = b[i];
-
-    if (depth && is_left) {
-
-        for (int i = 0; i < width + right; i++)
-            s[depth - 1][offset + left + width/2 + i] = '-';
-
-        s[depth - 1][offset + left + width/2] = '.';
-
-    } else if (depth && !is_left) {
-
-        for (int i = 0; i < left + width; i++)
-            s[depth - 1][offset - width/2 + i] = '-';
-
-        s[depth - 1][offset + left + width/2] = '.';
-    }
-#else
-    for (int i = 0; i < width; i++)
-        s[2 * depth][offset + left + i] = b[i];
-
-    if (depth && is_left) {
-
-        for (int i = 0; i < width + right; i++)
-            s[2 * depth - 1][offset + left + width/2 + i] = '-';
-
-        s[2 * depth - 1][offset + left + width/2] = '+';
-        s[2 * depth - 1][offset + left + width + right + width/2] = '+';
-
-    } else if (depth && !is_left) {
-
-        for (int i = 0; i < left + width; i++)
-            s[2 * depth - 1][offset - width/2 + i] = '-';
-
-        s[2 * depth - 1][offset + left + width/2] = '+';
-        s[2 * depth - 1][offset - width/2 - 1] = '+';
-    }
-#endif
-
-    return left + width + right;
-}
-
-
-void print_t(map_node_t *tree)
-{
-    char s[20][255];
-    for (int i = 0; i < 20; i++)
-        sprintf(s[i], "%80s", " ");
-
-    _print_t(tree, 0, 0, 0, s);
-
-    for (int i = 0; i < 20; i++)
-        printf("%s\n", s[i]);
-}
-
 static int dump_node(map_node_t* node, int current_depth, int current_x, int width, int height)
 {
     static const int BUF_SIZE = 15;
@@ -519,8 +450,6 @@ static int dump_node(map_node_t* node, int current_depth, int current_x, int wid
     memset(size_buffer, '\0', sizeof(size_buffer));
     memset(flags_buffer, '\0', sizeof(flags_buffer));
     memset(node_color, '\0', sizeof(node_color));
-
-    uint8_t line_max_width = 20;
 
     if (node == &map_guardian)
         return current_depth;
@@ -544,18 +473,20 @@ static int dump_node(map_node_t* node, int current_depth, int current_x, int wid
     memset(node_color+chars_written, ' ', sizeof(node_color) - chars_written);
 
     screen_buffer[current_depth][current_x] = '+';
-    strncpy(&(screen_buffer[current_depth+1][current_x]), pointer_buffer, BUF_SIZE);
-    strncpy(&(screen_buffer[current_depth+2][current_x]), size_buffer, BUF_SIZE);
-    strncpy(&(screen_buffer[current_depth+3][current_x]), flags_buffer, BUF_SIZE);
-    strncpy(&(screen_buffer[current_depth+4][current_x]), node_color, BUF_SIZE);
+    strncpy(&(screen_buffer[current_depth+1][current_x]), node_color, BUF_SIZE);
+    strncpy(&(screen_buffer[current_depth+2][current_x]), pointer_buffer, BUF_SIZE);
+    strncpy(&(screen_buffer[current_depth+3][current_x]), size_buffer, BUF_SIZE);
+    strncpy(&(screen_buffer[current_depth+4][current_x]), flags_buffer, BUF_SIZE);
+
     screen_buffer[current_depth + 5][current_x] = '/';
-    screen_buffer[current_depth + 5][current_x + BUF_SIZE-1] = '\';
+    screen_buffer[current_depth + 5][current_x + BUF_SIZE-1] = '\\';
 
     screen_buffer[current_depth][SCREEN_BUFFER_WIDTH - 1] = '\0';
     screen_buffer[current_depth + 1][SCREEN_BUFFER_WIDTH - 1] = '\0';
     screen_buffer[current_depth + 2][SCREEN_BUFFER_WIDTH - 1] = '\0';
     screen_buffer[current_depth + 3][SCREEN_BUFFER_WIDTH - 1] = '\0';
     screen_buffer[current_depth + 4][SCREEN_BUFFER_WIDTH - 1] = '\0';
+    screen_buffer[current_depth + 5][SCREEN_BUFFER_WIDTH - 1] = '\0';
 
     if (right_depth > current_depth || left_depth > current_depth)
     {
@@ -572,38 +503,41 @@ void dump_tree(map_t* map)
 {
     memset(screen_buffer, ' ', sizeof(screen_buffer));
 
-    int depth = dump_node(map->root, 0, 15, SCREEN_BUFFER_WIDTH, SCREEN_BUFFER_HEIGHT);
+    int depth = dump_node(map->root, 0, 30, SCREEN_BUFFER_WIDTH, SCREEN_BUFFER_HEIGHT);
 
     for(int i=5; i<depth; i += 5)
     {
-        int start_node_index = -1;
-        int end_node_index = -1;
+        bool needs_drawing = false;
         for(int j=0; j<SCREEN_BUFFER_WIDTH; ++j)
         {
-            if (start_node_index == -1 && screen_buffer[i][j] == '+')
+
+            if (screen_buffer[i][j] == '\\')
             {
-                start_node_index = j;
+                needs_drawing = true;
             }
-            if (screen_buffer[i][j] == '+')
+            else
             {
-                end_node_index = j;
-            }
-        }
-        if (start_node_index != -1 && end_node_index != -1)
-        {
-            for(int k = start_node_index + 1; k<end_node_index; ++k)
-            {
-                if (screen_buffer[i][k] == '|')
-                    continue;
+                if (screen_buffer[i][j] == '/')
+                {
+                    needs_drawing = false;
+                }
                 else
-                    screen_buffer[i][k] = '-';
+                if (screen_buffer[i][j] == '+')
+                {
+                    needs_drawing = !needs_drawing;
+                }
+                else
+                {
+                    if (needs_drawing)
+                        screen_buffer[i][j] = '-';
+                }
             }
         }
     }
 
     for(int i=0; i< depth; ++i)
     {
-        printf("%s\n", screen_buffer[i]);
+        printf("%s\r", screen_buffer[i]);
     }
 
     printf("\n\n");
