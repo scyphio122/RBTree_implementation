@@ -13,8 +13,6 @@ typedef struct
 
 int main(int argc, char *argv[])
 {
-    printf("Hello World!\n");
-
     obj_t obj1;
     obj_t obj2;
     obj_t obj3;
@@ -29,10 +27,38 @@ int main(int argc, char *argv[])
     obj4.index = 4;
     obj4.size = sizeof(obj_t);
 
-    mymap_mmap(&process_memory_map, sector + 500, obj1.size, 0, &obj1);
-    mymap_mmap(&process_memory_map, sector + 400, obj2.size, 0, &obj2);
-    mymap_mmap(&process_memory_map, sector + 600, obj3.size, 0, &obj3);
-    mymap_mmap(&process_memory_map, sector + 550, obj4.size, 0, &obj4);
-    mymap_mmap(&process_memory_map, sector + 650, obj4.size, 0, &obj4);
-        return 0;
+    int step = 1;
+    mymap_mmap(&process_memory_map, 0x500, obj1.size, 0, &obj1);
+    printf("Step: %d\n", step++);
+    print_t(process_memory_map.root);
+
+    void* retval = mymap_mmap(&process_memory_map, 0x400, obj2.size, 0, &obj2);
+    printf("Step: %d, inserted: %i\n", step++, retval);
+    print_t(process_memory_map.root);
+
+    retval = mymap_mmap(&process_memory_map, 0x600, obj3.size, 0, &obj3);
+    printf("Step: %d, inserted: %i\n", step++, retval);
+    print_t(process_memory_map.root);
+
+    retval = mymap_mmap(&process_memory_map, 0x550, obj4.size, 0, &obj4);
+    printf("Step: %d, inserted: %i\n", step++, retval);
+    print_t(process_memory_map.root);
+
+    retval = mymap_mmap(&process_memory_map, 0x650, obj4.size, 0, &obj4);
+    printf("Step: %d, inserted: %i\n", step++, retval);
+    print_t(process_memory_map.root);
+
+    retval = mymap_mmap(&process_memory_map, 0x700, obj4.size, 0, &obj4);
+    printf("Step: %d, inserted: %i\n", step++, retval);
+    print_t(process_memory_map.root);
+
+    retval = mymap_mmap(&process_memory_map, 0x575, obj4.size, 0, &obj4);
+    printf("Step: %d, inserted: %i\n", step++, retval);
+    print_t(process_memory_map.root);
+
+    //rotacja w lewo
+    retval = mymap_mmap(&process_memory_map, 0x585, obj4.size, 0, &obj4);
+    printf("Step: %d, inserted: %i\n", step++, retval);
+    print_t(process_memory_map.root);
+    return 0;
 }

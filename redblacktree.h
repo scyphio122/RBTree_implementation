@@ -51,5 +51,5 @@ void* map_find_lowest_available_space(map_t* map, void* start_address, uint64_t 
 
 void* mymap_mmap(map_t* map, void* vaddr, unsigned int size, unsigned int flags, void* o);
 
-
+void print_t(map_node_t* map_root);
 
