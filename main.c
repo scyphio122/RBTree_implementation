@@ -35,7 +35,6 @@ int main()
 
             token = strtok(NULL, " \n");
             sscanf(token, "%u", &(obj1.size));
-
             mymap_mmap(&process_memory_map, obj1.index, obj1.size, 0, &obj1);
             printf("\nDumping tree:\n");
             dump_tree(&process_memory_map);
@@ -53,42 +52,6 @@ int main()
         }
     }while(continue_program);
 
-    //printf("Step: %d\n", step++);
-//    print_t(process_memory_map.root);
-    //dump_tree(&process_memory_map);
-
-//    void* retval = mymap_mmap(&process_memory_map, 0x400, obj2.size, 0, &obj2);
-////    printf("Step: %d, inserted: %i\n", step++, retval);
-
-//    retval = mymap_mmap(&process_memory_map, 0x600, obj3.size, 0, &obj3);
-////    printf("Step: %d, inserted: %i\n", step++, retval);
-////    print_t(process_memory_map.root);
-
-//    retval = mymap_mmap(&process_memory_map, 0x550, obj4.size, 0, &obj4);
-////    printf("Step: %d, inserted: %i\n", step++, retval);
-////    print_t(process_memory_map.root);
-
-//    retval = mymap_mmap(&process_memory_map, 0x650, obj4.size, 0, &obj4);
-////    printf("Step: %d, inserted: %i\n", step++, retval);
-////    print_t(process_memory_map.root);
-
-//    retval = mymap_mmap(&process_memory_map, 0x700, obj4.size, 0, &obj4);
-////    printf("Step: %d, inserted: %i\n", step++, retval);
-////    print_t(process_memory_map.root);
-
-//    retval = mymap_mmap(&process_memory_map, 0x575, obj4.size, 0, &obj4);
-////    printf("Step: %d, inserted: %i\n", step++, retval);
-////    print_t(process_memory_map.root);
-
-//    //rotacja w lewo
-//    //retval = mymap_mmap(&process_memory_map, 0x585, 0x100, 0, &obj4);
-
-//    dump_tree(&process_memory_map);
-
-//    retval = mymap_mmap(&process_memory_map, 0x560, 0x10, 0, &obj4);
-////    printf("Step: %d, inserted: %i\n", step++, retval);
-////    print_t(process_memory_map.root);
-//    dump_tree(&process_memory_map);
 
     return 0;
 }

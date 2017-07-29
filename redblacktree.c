@@ -122,7 +122,7 @@ static bool _check_case_3(map_t* map, map_node_t* node_to_check)
                 grandparent->right_child->node_color == E_BLACK &&
                 parent->node_color == E_RED)
         {
-            _rotate_right(&root, parent);
+            _rotate_right(&(map->root), parent);
         }
         else
         {
@@ -135,7 +135,7 @@ static bool _check_case_3(map_t* map, map_node_t* node_to_check)
                 node_to_check == parent->right_child &&
                 grandparent->left_child->node_color == E_BLACK)
         {
-            _rotate_left(&root, parent);
+            _rotate_left(&(map->root), parent);
         }
         else
         {
@@ -174,7 +174,7 @@ static bool _check_case_2(map_t* map, map_node_t* node_to_check)
                 grandparent->right_child->node_color == E_BLACK &&
                 node_to_check == parent->right_child)
         {
-            _rotate_left(&root, node_to_check);
+            _rotate_left(&(map->root), node_to_check);
             /// After rotation, parent became left child of node_to_check
             _check_case_3(map, parent);
 
@@ -187,7 +187,7 @@ static bool _check_case_2(map_t* map, map_node_t* node_to_check)
                 grandparent->left_child->node_color == E_BLACK &&
                 node_to_check == parent->left_child)
         {
-            _rotate_right(&root, node_to_check);
+            _rotate_right(&(map->root), node_to_check);
             /// After rotation, parent became left child of node_to_check
             _check_case_3(map, parent);
 
@@ -288,6 +288,7 @@ void* map_find_lowest_available_space(map_t* map, void* start_address, uint64_t 
 
     do
     {
+        /// If the currently tried address is larger than the currently checked node
         if (start_address > tmp->object_address)
         {
             if (tmp->right_child == & map_guardian)
@@ -303,7 +304,6 @@ void* map_find_lowest_available_space(map_t* map, void* start_address, uint64_t 
                 {
                     /// Set the new searched address just behind the neares object
                     start_address = (void*)((uint64_t)tmp->right_child->object_address + tmp->right_child->object_size);
-//                    tmp = map->root;
                     continue;
                 }
             }
@@ -323,11 +323,16 @@ void* map_find_lowest_available_space(map_t* map, void* start_address, uint64_t 
             }
             else
             {
-                /// Start over
+                /// Start over again
                 start_address = (void*)((uint64_t)tmp->object_address + tmp->object_size);
                 tmp = map->root;
                 continue;
             }
+        }
+        else // If address is equal to current object,
+        {
+            start_address = (void*)((uint64_t)tmp->object_address + tmp->object_size);
+            continue;
         }
 
     }while(1);
