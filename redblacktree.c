@@ -106,7 +106,6 @@ static void _rotate_right(map_node_t** map_root, map_node_t* left_child)
 
 static bool _check_case_3(map_t* map, map_node_t* node_to_check)
 {
-    map_node_t* root = map->root;
     map_node_t* parent = node_to_check->parent;
     //  If is root
     if (parent == NULL)
@@ -158,7 +157,6 @@ static bool _check_case_3(map_t* map, map_node_t* node_to_check)
 
 static bool _check_case_2(map_t* map, map_node_t* node_to_check)
 {
-    map_node_t* root = map->root;
     map_node_t* parent = node_to_check->parent;
     //  If is root
     if (parent == NULL)
@@ -282,7 +280,14 @@ static void _recover_RB_properties(map_t* map, map_node_t* current_node)
     }while(current_node != map->root);
 }
 
-void* map_find_lowest_available_space(map_t* map, void* start_address, uint64_t size_requested)
+/**
+ * @brief _map_find_lowest_available_space - it finds lowest possible addres in which object could be placed
+ * @param map
+ * @param start_address
+ * @param size_requested
+ * @return address where the object will be held
+ */
+static void* _map_find_lowest_available_space(map_t* map, void* start_address, uint64_t size_requested)
 {
     map_node_t* tmp = map->root;
 
@@ -425,9 +430,6 @@ void* mymap_mmap(map_t* map, void* vaddr, unsigned int size, unsigned int flags,
                     }
                     else
                     {
-//                        forced_right_subtree_embedding = true;
-//                        node_ptr = map->root->right_child;
-//                        continue;
                         node_ptr = node_ptr->right_child;
                         continue;
                     }
@@ -441,7 +443,7 @@ void* mymap_mmap(map_t* map, void* vaddr, unsigned int size, unsigned int flags,
         }
         else
         {
-            vaddr = map_find_lowest_available_space(map, vaddr, size);
+            vaddr = _map_find_lowest_available_space(map, vaddr, size);
             new_node->object_address = vaddr;
             node_ptr = map->root;
             forced_right_subtree_embedding = false;
@@ -452,7 +454,7 @@ void* mymap_mmap(map_t* map, void* vaddr, unsigned int size, unsigned int flags,
     return NULL;
 }
 
-static int dump_node(map_node_t* node, int current_depth, int current_x, int width, int height)
+static int _dump_node(map_node_t* node, int current_depth, int current_x, int width, int height)
 {
     static const int BUF_SIZE = 15;
     char pointer_buffer[BUF_SIZE];
@@ -471,8 +473,8 @@ static int dump_node(map_node_t* node, int current_depth, int current_x, int wid
     int left_depth = current_depth;
     int right_depth = current_depth;
 
-    left_depth = dump_node(node->left_child, current_depth + 5, current_x - 15, width, height);
-    right_depth = dump_node(node->right_child, current_depth + 5, current_x + NODE_SIZE - current_depth, width, height);
+    left_depth = _dump_node(node->left_child, current_depth + 5, current_x - 15, width, height);
+    right_depth = _dump_node(node->right_child, current_depth + 5, current_x + NODE_SIZE - current_depth, width, height);
 
     int chars_written = sprintf(pointer_buffer, "P:%p", node->object_address);
     memset(pointer_buffer+chars_written, ' ', sizeof(pointer_buffer) - chars_written);
@@ -526,7 +528,7 @@ void dump_tree(map_t* map)
 {
     memset(screen_buffer, ' ', sizeof(screen_buffer));
 
-    int depth = dump_node(map->root, 0, 50, SCREEN_BUFFER_WIDTH, SCREEN_BUFFER_HEIGHT);
+    int depth = _dump_node(map->root, 0, 50, SCREEN_BUFFER_WIDTH, SCREEN_BUFFER_HEIGHT);
 
     for(int i=5; i<depth; i += 5)
     {
