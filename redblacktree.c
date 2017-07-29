@@ -5,8 +5,8 @@
 #include <string.h>
 
 #define SCREEN_BUFFER_WIDTH     256
-#define SCREEN_BUFFER_HEIGHT    60
-#define NODE_SIZE               20
+#define SCREEN_BUFFER_HEIGHT    1024
+#define NODE_SIZE               35
 
 static map_node_t map_guardian = {    .object_address = NULL,
                                       .object_size = 0,
@@ -60,7 +60,7 @@ static void _rotate_left(map_node_t** map_root, map_node_t* right_child)
     else
     {
         /// If parent is right child of granparent
-        if (parent->object_address > parent->parent->object_address)
+        if (parent == parent->parent->right_child)
         {
             parent->parent->right_child = right_child;
         }
@@ -69,8 +69,9 @@ static void _rotate_left(map_node_t** map_root, map_node_t* right_child)
             parent->parent->left_child = right_child;
         }
     }
-
     right_child->left_child = parent;
+    right_child->parent = parent->parent;
+    parent->parent = right_child;
     parent->right_child = tmp;
 }
 
@@ -86,17 +87,20 @@ static void _rotate_right(map_node_t** map_root, map_node_t* left_child)
     else
     {
         /// If parent is left child of granparent
-        if (parent->object_address < parent->parent->object_address)
+        if (parent == parent->parent->left_child)
         {
             parent->parent->left_child = left_child;
         }
         else /// If parent is right child of grandparent
         {
             parent->parent->right_child = left_child;
+
         }
     }
 
     left_child->right_child = parent;
+    left_child->parent = parent->parent;
+    parent->parent = left_child;
     parent->left_child = tmp;
 }
 
@@ -286,6 +290,8 @@ void* map_find_lowest_available_space(map_t* map, void* start_address, uint64_t 
     {
         if (start_address > tmp->object_address)
         {
+            if (tmp->right_child == & map_guardian)
+                return start_address;
             if (start_address < tmp->right_child->object_address)
             {
                 /// If there is enough space
@@ -297,7 +303,7 @@ void* map_find_lowest_available_space(map_t* map, void* start_address, uint64_t 
                 {
                     /// Set the new searched address just behind the neares object
                     start_address = (void*)((uint64_t)tmp->right_child->object_address + tmp->right_child->object_size);
-                    tmp = map->root;
+//                    tmp = map->root;
                     continue;
                 }
             }
@@ -431,6 +437,7 @@ void* mymap_mmap(map_t* map, void* vaddr, unsigned int size, unsigned int flags,
             vaddr = map_find_lowest_available_space(map, vaddr, size);
             new_node->object_address = vaddr;
             node_ptr = map->root;
+            forced_right_subtree_embedding = false;
             continue;
         }
     }while(node_ptr != &map_guardian);
@@ -457,8 +464,8 @@ static int dump_node(map_node_t* node, int current_depth, int current_x, int wid
     int left_depth = current_depth;
     int right_depth = current_depth;
 
-    left_depth = dump_node(node->left_child, current_depth + 5, current_x - NODE_SIZE, width, height);
-    right_depth = dump_node(node->right_child, current_depth + 5, current_x + NODE_SIZE, width, height);
+    left_depth = dump_node(node->left_child, current_depth + 5, current_x - 15, width, height);
+    right_depth = dump_node(node->right_child, current_depth + 5, current_x + NODE_SIZE - current_depth, width, height);
 
     int chars_written = sprintf(pointer_buffer, "P:%p", node->object_address);
     memset(pointer_buffer+chars_written, ' ', sizeof(pointer_buffer) - chars_written);
@@ -472,14 +479,23 @@ static int dump_node(map_node_t* node, int current_depth, int current_x, int wid
     chars_written = sprintf(node_color, "Node color: %c", node->node_color? 'R' : 'B');
     memset(node_color+chars_written, ' ', sizeof(node_color) - chars_written);
 
-    screen_buffer[current_depth][current_x] = '+';
+    if (node->parent != NULL)
+    {
+        if (node == node->parent->left_child)
+            screen_buffer[current_depth][current_x+BUF_SIZE/4] = '>';
+        else
+            screen_buffer[current_depth][current_x] = '<';
+    }
+
     strncpy(&(screen_buffer[current_depth+1][current_x]), node_color, BUF_SIZE);
     strncpy(&(screen_buffer[current_depth+2][current_x]), pointer_buffer, BUF_SIZE);
     strncpy(&(screen_buffer[current_depth+3][current_x]), size_buffer, BUF_SIZE);
     strncpy(&(screen_buffer[current_depth+4][current_x]), flags_buffer, BUF_SIZE);
 
-    screen_buffer[current_depth + 5][current_x] = '/';
-    screen_buffer[current_depth + 5][current_x + BUF_SIZE-1] = '\\';
+    if (node->left_child != &map_guardian)
+        screen_buffer[current_depth + 5][current_x + BUF_SIZE/2] = '/';
+    if (node->right_child != &map_guardian)
+        screen_buffer[current_depth + 5][current_x + BUF_SIZE/2 + 1] = '\\';
 
     screen_buffer[current_depth][SCREEN_BUFFER_WIDTH - 1] = '\0';
     screen_buffer[current_depth + 1][SCREEN_BUFFER_WIDTH - 1] = '\0';
@@ -503,7 +519,7 @@ void dump_tree(map_t* map)
 {
     memset(screen_buffer, ' ', sizeof(screen_buffer));
 
-    int depth = dump_node(map->root, 0, 30, SCREEN_BUFFER_WIDTH, SCREEN_BUFFER_HEIGHT);
+    int depth = dump_node(map->root, 0, 50, SCREEN_BUFFER_WIDTH, SCREEN_BUFFER_HEIGHT);
 
     for(int i=5; i<depth; i += 5)
     {
@@ -511,21 +527,17 @@ void dump_tree(map_t* map)
         for(int j=0; j<SCREEN_BUFFER_WIDTH; ++j)
         {
 
-            if (screen_buffer[i][j] == '\\')
+            if (screen_buffer[i][j] == '\\' || screen_buffer[i][j] == '>')
             {
                 needs_drawing = true;
             }
             else
             {
-                if (screen_buffer[i][j] == '/')
+                if (screen_buffer[i][j] == '/' || screen_buffer[i][j] == '<')
                 {
                     needs_drawing = false;
                 }
-                else
-                if (screen_buffer[i][j] == '+')
-                {
-                    needs_drawing = !needs_drawing;
-                }
+
                 else
                 {
                     if (needs_drawing)

@@ -57,7 +57,11 @@ int main(int argc, char *argv[])
 //    print_t(process_memory_map.root);
 
     //rotacja w lewo
-    retval = mymap_mmap(&process_memory_map, 0x585, obj4.size, 0, &obj4);
+    //retval = mymap_mmap(&process_memory_map, 0x585, 0x100, 0, &obj4);
+
+    dump_tree(&process_memory_map);
+
+    retval = mymap_mmap(&process_memory_map, 0x560, 0x10, 0, &obj4);
 //    printf("Step: %d, inserted: %i\n", step++, retval);
 //    print_t(process_memory_map.root);
     dump_tree(&process_memory_map);
