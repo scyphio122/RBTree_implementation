@@ -364,7 +364,7 @@ void* mymap_mmap(map_t* map, void* vaddr, unsigned int size, unsigned int flags,
     {
         if (!forced_right_subtree_embedding)
         {
-            if (new_node->object_address < node_ptr->object_address)
+            if (new_node->object_address <= node_ptr->object_address)
             {
                 /// If the object address is lesser than the current object address
                 if  (_is_strictly_lower_address(new_node, node_ptr))
@@ -392,12 +392,14 @@ void* mymap_mmap(map_t* map, void* vaddr, unsigned int size, unsigned int flags,
                 else
                 {
                     forced_right_subtree_embedding = true;
-                    node_ptr = map->root->right_child;
+                    node_ptr = map->root;
+                    new_node->object_address = map->root->object_address + map->root->object_size;
+                    vaddr = new_node->object_address;
                     continue;
                 }
             }
 
-            if (new_node->object_address > node_ptr->object_address)
+            if (new_node->object_address >= node_ptr->object_address)
             {
                 /// Check if object should be placed to the right from the current node
                 if (_is_strictly_higher_address(new_node, node_ptr))
