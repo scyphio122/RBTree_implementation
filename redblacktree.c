@@ -345,6 +345,45 @@ static void* _map_find_lowest_available_space(map_t* map, void* start_address, u
     return NULL;
 }
 
+int mymap_init(map_t* map)
+{
+    map_node_t* tmp = map->root;
+    map_node_t* parent = tmp->parent;
+    if (map->root != NULL)
+    {
+        do
+        {
+            if (tmp->left_child != &map_guardian)
+            {
+                parent = tmp;
+                tmp = tmp->left_child;
+                continue;
+            }
+            else
+            {
+                free(tmp);
+                tmp = parent;
+                continue;
+            }
+
+            if (tmp->right_child != &map_guardian)
+            {
+                parent = tmp;
+                tmp = tmp->right_child;
+                continue;
+            }
+            else
+            {
+                free(tmp);
+                tmp = parent;
+                continue;
+            }
+        }while(map->root != NULL);
+    }
+
+    map->root = NULL;
+}
+
 void* mymap_mmap(map_t* map, void* vaddr, unsigned int size, unsigned int flags, void* o)
 {
     bool forced_right_subtree_embedding = false;
@@ -473,38 +512,83 @@ static int _dump_node(map_node_t* node, int current_depth, int current_x, int wi
     int left_depth = current_depth;
     int right_depth = current_depth;
 
-    left_depth = _dump_node(node->left_child, current_depth + 5, current_x - 15, width, height);
-    right_depth = _dump_node(node->right_child, current_depth + 5, current_x + NODE_SIZE - current_depth, width, height);
+    int offset = 0;
+    if (current_depth == 0)
+    {
+        offset = NODE_SIZE;
+    }
 
-    int chars_written = sprintf(pointer_buffer, "P:%p", node->object_address);
-    memset(pointer_buffer+chars_written, ' ', sizeof(pointer_buffer) - chars_written);
-
-    chars_written = sprintf(size_buffer, "S:%u", node->object_size);
-    memset(size_buffer+chars_written, ' ', sizeof(size_buffer) - chars_written);
-
-    chars_written = sprintf(flags_buffer, "F:%u", node->object_flags);
-    memset(flags_buffer+chars_written, ' ', sizeof(flags_buffer) - chars_written);
-
-    chars_written = sprintf(node_color, "Node color: %c", node->node_color? 'R' : 'B');
-    memset(node_color+chars_written, ' ', sizeof(node_color) - chars_written);
-
+    bool is_left_node = true;
+    int drawing_x_index = current_x;
     if (node->parent != NULL)
     {
         if (node == node->parent->left_child)
-            screen_buffer[current_depth][current_x+BUF_SIZE/4] = '>';
+        {
+            is_left_node = true;
+            offset = BUF_SIZE;
+        }
         else
-            screen_buffer[current_depth][current_x] = '<';
+        {
+            is_left_node = false;
+        }
     }
 
-    strncpy(&(screen_buffer[current_depth+1][current_x]), node_color, BUF_SIZE);
-    strncpy(&(screen_buffer[current_depth+2][current_x]), pointer_buffer, BUF_SIZE);
-    strncpy(&(screen_buffer[current_depth+3][current_x]), size_buffer, BUF_SIZE);
-    strncpy(&(screen_buffer[current_depth+4][current_x]), flags_buffer, BUF_SIZE);
+    if (is_left_node)
+    {
+        left_depth = _dump_node(node->left_child, current_depth + 5, current_x - offset, width, height);
+        right_depth = _dump_node(node->right_child, current_depth + 5, current_x + 15, width, height);
+    }
+    else
+    {
+        left_depth = _dump_node(node->left_child, current_depth + 5, current_x - 15, width, height);
+        right_depth = _dump_node(node->right_child, current_depth + 5, current_x + offset, width, height);
+    }
+    int chars_written = sprintf(pointer_buffer, "P:%p", node->object_address);
+    memset(pointer_buffer+chars_written, '.', sizeof(pointer_buffer) - chars_written);
+
+    chars_written = sprintf(size_buffer, "S:%u", node->object_size);
+    memset(size_buffer+chars_written, '.', sizeof(size_buffer) - chars_written);
+
+    chars_written = sprintf(flags_buffer, "F:%u", node->object_flags);
+    memset(flags_buffer+chars_written, '.', sizeof(flags_buffer) - chars_written);
+
+    chars_written = sprintf(node_color, "Node_color:%c", node->node_color? 'R' : 'B');
+    memset(node_color+chars_written, '.', sizeof(node_color) - chars_written);
+
+    if (node->parent != NULL)
+    {
+        screen_buffer[current_depth][current_x+BUF_SIZE/4] = '>';
+    }
+    else
+    {
+        screen_buffer[current_depth][current_x] = '<';
+    }
+
+
+    if (is_left_node)
+    {
+        for(int i = current_x; screen_buffer[current_depth+1][i+BUF_SIZE] != ' '; --i)
+        {
+            drawing_x_index = i;
+        }
+    }
+    else
+    {
+        for(int i = current_x; screen_buffer[current_depth+1][i] != ' '; ++i)
+        {
+            drawing_x_index = i;
+        }
+    }
+
+    strncpy(&(screen_buffer[current_depth+1][drawing_x_index]), node_color, BUF_SIZE);
+    strncpy(&(screen_buffer[current_depth+2][drawing_x_index]), pointer_buffer, BUF_SIZE);
+    strncpy(&(screen_buffer[current_depth+3][drawing_x_index]), size_buffer, BUF_SIZE);
+    strncpy(&(screen_buffer[current_depth+4][drawing_x_index]), flags_buffer, BUF_SIZE);
 
     if (node->left_child != &map_guardian)
-        screen_buffer[current_depth + 5][current_x + BUF_SIZE/2] = '/';
+        screen_buffer[current_depth + 5][drawing_x_index + BUF_SIZE/2] = '/';
     if (node->right_child != &map_guardian)
-        screen_buffer[current_depth + 5][current_x + BUF_SIZE/2 + 1] = '\\';
+        screen_buffer[current_depth + 5][drawing_x_index + BUF_SIZE/2 + 1] = '\\';
 
     screen_buffer[current_depth][SCREEN_BUFFER_WIDTH - 1] = '\0';
     screen_buffer[current_depth + 1][SCREEN_BUFFER_WIDTH - 1] = '\0';

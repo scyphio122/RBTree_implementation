@@ -30,6 +30,7 @@ typedef struct map_node_t
 typedef struct
 {
     struct map_node_t* root;
+    int depth;
 }map_t;
 
 /**
